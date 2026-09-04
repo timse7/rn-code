@@ -1,0 +1,3 @@
+# Runtime dependencies for the examples.
+# The standard library (socket, socketserver, struct, selectors, ...) covers
+# most of the lecture; add third-party packages here as they are needed.
