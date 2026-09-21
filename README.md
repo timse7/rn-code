@@ -28,8 +28,12 @@ make lint                                       # style and error checks (ruff)
 make clean                                      # remove caches and build artifacts
 ```
 
-Only the standard library is used (`threading`, `abc`, `random`, `time`), so
-every example also runs on a bare Python 3.9+ without the virtual environment.
+Only the standard library is used (`threading`, `socket`, `abc`, `random`,
+`time`), so every example also runs on a bare Python 3.9+ without the virtual
+environment.
+
+The socket examples come in pairs: start the server in one terminal and run
+the client in another.
 
 ## Contents
 
@@ -64,6 +68,20 @@ every example also runs on a bare Python 3.9+ without the virtual environment.
 |------|-------------|
 | `rw.py` | Access control with writer preference |
 | `rw_user.py` | Reader and writer threads plus the driver |
+
+### [5. TCP sockets](05_tcp_sockets)
+
+| File | Description |
+|------|-------------|
+| `tcp_server.py` | Welcoming socket, one connection socket per client |
+| `tcp_client.py` | Connects, sends a line, prints the reply |
+
+### [6. UDP sockets](06_udp_sockets)
+
+| File | Description |
+|------|-------------|
+| `udp_server.py` | One socket serving every client |
+| `udp_client.py` | Sends a datagram, prints the reply, times out if none comes |
 
 ## A note on the GIL
 
