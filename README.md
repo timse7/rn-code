@@ -83,6 +83,13 @@ the client in another.
 | `udp_server.py` | One socket serving every client |
 | `udp_client.py` | Sends a datagram, prints the reply, times out if none comes |
 
+### [7. UDP packet loss](07_udp_packet_loss)
+
+| File | Description |
+|------|-------------|
+| `udp_flood_client.py` | Sends 1024-byte packets as fast as it can, numbered |
+| `udp_flood_server.py` | Counts arrivals, detects gaps, reports how many were lost |
+
 ## A note on the GIL
 
 CPython serialises the execution of Python bytecode with a global interpreter

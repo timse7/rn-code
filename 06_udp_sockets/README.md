@@ -62,6 +62,10 @@ no reply within 2.0 s -- request or reply lost?
 Anything more — retransmitting, detecting duplicates, putting datagrams back in
 order — has to be built on top, which is essentially what TCP does for you.
 
+Chapter 7 makes this measurable: a sender at full speed against a receiver
+that cannot keep up loses about half of its packets, and neither side is
+told.
+
 ## Compared with TCP
 
 | | TCP | UDP |
