@@ -99,6 +99,15 @@ the client in another.
 | `quic_server.py` | Listens on UDP 4433, one handler per stream |
 | `quic_client.py` | Opens a stream, sends a line, prints the reply |
 
+### [9. Reliable data transfer over UDP](09_reliable_transfer)
+
+| File | Description |
+|------|-------------|
+| `rdt_common.py` | Packet format and a deliberately lossy channel |
+| `rdt_receiver.py` | Receiver with cumulative acknowledgements |
+| `rdt_sender.py` | Stop-and-wait and go-back-N senders |
+| `rdt_compare.py` | Runs both over the same channel and compares them |
+
 ## A note on the GIL
 
 CPython serialises the execution of Python bytecode with a global interpreter
