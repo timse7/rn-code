@@ -28,9 +28,10 @@ make lint                                       # style and error checks (ruff)
 make clean                                      # remove caches and build artifacts
 ```
 
-Only the standard library is used (`threading`, `socket`, `abc`, `random`,
-`time`), so every example also runs on a bare Python 3.9+ without the virtual
-environment.
+Chapters 1-7 use only the standard library (`threading`, `socket`, `abc`,
+`random`, `time`) and run on a bare Python 3.9+ without the virtual
+environment. Chapter 8 is the exception: QUIC is not in the standard library,
+so it needs `aioquic` from `requirements.txt`.
 
 The socket examples come in pairs: start the server in one terminal and run
 the client in another.
@@ -89,6 +90,14 @@ the client in another.
 |------|-------------|
 | `udp_flood_client.py` | Sends 1024-byte packets as fast as it can, numbered |
 | `udp_flood_server.py` | Counts arrivals, detects gaps, reports how many were lost |
+
+### [8. QUIC sockets](08_quic_sockets)
+
+| File | Description |
+|------|-------------|
+| `quic_common.py` | ALPN name, port, throwaway self-signed certificate |
+| `quic_server.py` | Listens on UDP 4433, one handler per stream |
+| `quic_client.py` | Opens a stream, sends a line, prints the reply |
 
 ## A note on the GIL
 

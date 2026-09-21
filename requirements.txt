@@ -1,3 +1,10 @@
 # Runtime dependencies for the examples.
-# The standard library (socket, socketserver, struct, selectors, ...) covers
-# most of the lecture; add third-party packages here as they are needed.
+#
+# Chapters 1-7 need nothing beyond the standard library (threading, socket,
+# abc, random, time) and run on a bare Python 3.9+.
+#
+# Chapter 8 is the exception: QUIC is not in the standard library, and it
+# cannot be demonstrated without a real implementation, because the protocol
+# has TLS 1.3 built into it. aioquic pulls in `cryptography`, which the
+# example also uses to generate its throwaway certificate.
+aioquic>=1.0
