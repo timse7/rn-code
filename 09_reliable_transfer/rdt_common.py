@@ -31,6 +31,7 @@ KIND_DATA = 0
 KIND_ACK = 1  # the number field is the next sequence number expected
 KIND_FIN = 2  # the number field is the total number of data packets
 KIND_FINACK = 3
+KIND_SACK = 4  # selective: the number field is the one packet acknowledged
 
 
 def pack(kind, number, payload=b""):

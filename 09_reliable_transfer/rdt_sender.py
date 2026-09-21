@@ -1,13 +1,16 @@
 """Sender for the reliable-transfer example, in two flavours.
 
-    python rdt_sender.py [host] [port] [sw|gbn] [packets]
+    python rdt_sender.py [host] [port] [sw|gbn|sr] [packets]
 
-    sw    stop-and-wait: send one packet, wait for its acknowledgement
-    gbn   go-back-N: keep a window of unacknowledged packets in flight
+    sw    stop-and-wait: one packet in flight, wait for its acknowledgement
+    gbn   go-back-N: a window in flight, one timer, resend the whole window
+    sr    selective repeat: a window in flight, a timer each, resend one
 
-Both sit on a plain UDP socket and both survive a lossy channel. The
-difference is only how many packets may be outstanding at once, and that
-difference is what the transfer time shows.
+All three sit on a plain UDP socket and all three survive a lossy channel.
+They differ in how many packets may be outstanding, and in what a lost packet
+costs -- and the measurements show both.
+
+`sr` needs the matching receiver: run `rdt_receiver.py <port> sr`.
 """
 
 import socket
@@ -20,6 +23,7 @@ from rdt_common import (
     KIND_DATA,
     KIND_FIN,
     KIND_FINACK,
+    KIND_SACK,
     MAX_RETRIES,
     PAYLOAD,
     PORT,
@@ -146,6 +150,76 @@ def go_back_n(channel, dest, count, rto=RTO, window=WINDOW):
     return result
 
 
+def _await_sack(channel, deadline, acked):
+    """Wait for an acknowledgement of a packet not yet acknowledged."""
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return None
+        channel.settimeout(remaining)
+        try:
+            datagram, _ = channel.recvfrom(BUFSIZE)
+        except socket.timeout:
+            return None
+        kind, number, _ = unpack(datagram)
+        if kind == KIND_SACK and number not in acked:
+            return number
+
+
+def selective_repeat(channel, dest, count, rto=RTO, window=WINDOW):
+    """Up to `window` packets in flight, each with its own timer.
+
+    The difference to go-back-N is in what a timeout costs. Here only the one
+    packet whose timer expired is sent again, because the receiver has kept
+    everything else that arrived and said so packet by packet.
+    """
+    payload = b"x" * PAYLOAD
+    result = Result(f"selective repeat (w={window})")
+    start = time.monotonic()
+
+    base = 0  # oldest packet not yet acknowledged
+    nextseq = 0  # next packet never sent before
+    sent_at = {}  # sequence number -> when it last went out
+    acked = set()
+    stalls = 0
+
+    while base < count:
+        while nextseq < base + window and nextseq < count:
+            channel.sendto(pack(KIND_DATA, nextseq, payload), dest)
+            sent_at[nextseq] = time.monotonic()
+            result.packets += 1
+            nextseq += 1
+
+        outstanding = [s for s in range(base, nextseq) if s not in acked]
+        if not outstanding:
+            break  # everything sent has been acknowledged
+
+        # The timer that expires first belongs to whichever packet went out
+        # longest ago -- not necessarily the oldest one in the window.
+        oldest = min(outstanding, key=sent_at.__getitem__)
+        number = _await_sack(channel, sent_at[oldest] + rto, acked)
+
+        if number is None:
+            result.timeouts += 1
+            stalls += 1
+            if stalls > MAX_RETRIES:
+                raise RuntimeError(f"gave up on packet {oldest}")
+            channel.sendto(pack(KIND_DATA, oldest, payload), dest)
+            sent_at[oldest] = time.monotonic()
+            result.packets += 1
+            result.retransmitted += 1
+            continue
+
+        acked.add(number)
+        stalls = 0
+        while base in acked:  # slide past everything now complete
+            base += 1
+
+    _finish(channel, dest, count, rto)
+    result.elapsed = time.monotonic() - start
+    return result
+
+
 def _finish(channel, dest, count, rto):
     """Announce the total. The closing handshake can be lost as well."""
     for _ in range(MAX_RETRIES):
@@ -161,7 +235,7 @@ def _finish(channel, dest, count, rto):
     raise RuntimeError("receiver never confirmed the end of the transfer")
 
 
-PROTOCOLS = {"sw": stop_and_wait, "gbn": go_back_n}
+PROTOCOLS = {"sw": stop_and_wait, "gbn": go_back_n, "sr": selective_repeat}
 
 
 def main():
@@ -171,7 +245,7 @@ def main():
     count = int(sys.argv[4]) if len(sys.argv) > 4 else COUNT
 
     if name not in PROTOCOLS:
-        sys.exit(f"usage: {sys.argv[0]} [host] [port] [sw|gbn] [packets]")
+        sys.exit(f"usage: {sys.argv[0]} [host] [port] [sw|gbn|sr] [packets]")
 
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         channel = LossyChannel(sock, seed=1)
