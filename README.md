@@ -104,9 +104,10 @@ the client in another.
 | File | Description |
 |------|-------------|
 | `rdt_common.py` | Packet format and a deliberately lossy channel |
-| `rdt_receiver.py` | Receiver with cumulative acknowledgements |
-| `rdt_sender.py` | Stop-and-wait and go-back-N senders |
-| `rdt_compare.py` | Runs both over the same channel and compares them |
+| `rdt_receiver.py` | Two receivers: cumulative, and one that buffers early arrivals |
+| `rdt_sender.py` | Three senders: stop-and-wait, go-back-N, selective repeat |
+| `rdt_compare.py` | Runs all three over the same channel and compares them |
+| `rdt_dilemma.py` | Why a selective-repeat window may be at most half the sequence space |
 
 ## A note on the GIL
 

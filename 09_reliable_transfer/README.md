@@ -12,6 +12,7 @@ made to go. That machinery is what a transport protocol like TCP adds.
 | `rdt_receiver.py` | Two receivers: cumulative, and one that buffers early arrivals |
 | `rdt_sender.py` | Three senders: stop-and-wait, go-back-N, selective repeat |
 | `rdt_compare.py` | Runs all three over the same channel and compares them |
+| `rdt_dilemma.py` | Why a selective-repeat window may be at most half the sequence space |
 
 The quickest look, one command:
 
@@ -141,6 +142,73 @@ Selective repeat does not notice at all: not one retransmission. Its buffer
 fills to the full window of 8 and empties again as the gaps close, which is
 exactly what the buffer is for. Reordering is where the two designs differ
 most sharply, and it costs nothing to demonstrate.
+
+## How wide may the window be?
+
+The sender above counts packets with a 32-bit sequence number that never
+wraps, because `HEADER` is `struct.Struct("!BI")` and 100 packets get nowhere
+near four billion. That is a convenience of the example, not of protocols: a
+real header carries a small field, the number wraps, and then window width
+stops being free. `rdt_dilemma.py` cuts the field to three bits -- eight
+values -- and does the window arithmetic modulo eight:
+
+```bash
+python rdt_dilemma.py        # both windows, side by side
+python rdt_dilemma.py 7      # just the broken one, with the full trace
+```
+
+Both runs lose exactly the same thing: every acknowledgement for the first
+window. Only the width differs.
+
+With **W = 4**, half the space, the retransmission lands outside the receive
+window and is thrown away as the duplicate it is:
+
+```
+round 2
+  timeout   packet 0 still unacknowledged, resend as seq 0
+  receive   window is [4, 5, 6, 7], seq 0 outside the window, discarded
+```
+
+With **W = 7** the receive window has advanced to `[7, 0, 1, 2, 3, 4, 5]`,
+which still contains 0. The same retransmission now falls *inside* it:
+
+```
+round 2
+  timeout   packet 0 still unacknowledged, resend as seq 0
+  receive   window is [7, 0, 1, 2, 3, 4, 5], seq 0 inside the window,
+            buffered as early arrival (packet 0)
+round 3
+  send      packet 7 as seq 7
+  receive   seq 7 delivered packet 7, packet 0
+
+  delivered  0, 1, 2, 3, 4, 5, 6, 7, 0
+  expected   0, 1, 2, 3, 4, 5, 6, 7, 8
+```
+
+The transfer reports success and the data is wrong. Nothing was lost in round
+three, nothing timed out, no checksum would catch it: the receiver was asked
+to tell a retransmission of packet 0 from a first transmission of packet 8,
+and both arrive carrying sequence number 0. It has nothing else to go on.
+
+Sweep every width and the line falls exactly where the arithmetic says:
+
+| W | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+|---|---|---|---|---|---|---|---|
+| N = 8 | ok | ok | ok | **ok** | **wrong** | wrong | wrong |
+
+So the rule, for a sequence space of N and equal windows at each end:
+
+> **W ≤ N / 2**
+
+The reason it is N/2 rather than N−1 is that *both* windows have to fit. The
+receiver must never see an old sequence number inside its new window, and by
+symmetry the sender must never mistake which packet an acknowledgement names
+-- `Sender.ack` in the demo has the same search, in reverse. The general form
+is `sender window + receiver window ≤ N`, and equal windows make that W ≤ N/2.
+
+Go-back-N gets away with **W ≤ N − 1** for exactly this reason: its receiver
+window is one, so only the sender's has to fit, and `W + 1 ≤ N`. Buying the
+efficiency of selective repeat costs half the sequence space.
 
 ## Details worth pointing at
 
